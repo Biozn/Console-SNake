@@ -10,7 +10,7 @@ void display(wchar_t[][Width], int&, int&, int&, int&, int[], int[], int&, int&,
 int main()
 {
 	SetConsoleTitle(TEXT("ASCI Snake 1.0"));
-	//rozmiar okna
+	//Console window size
 	HWND console = GetConsoleWindow();
 	RECT ConsoleRect;
 	GetWindowRect(console, &ConsoleRect);
@@ -24,7 +24,7 @@ int main()
 	int xpos, ypos, hxpos, hypos, length, tailx[(Height - 2) * (Width - 3)], taily[(Height - 2) * (Width - 3)];
 	int state, fxpos, fypos, delay, score = 1000;
 	bool game = true;
-	//seed dla generowania owocu
+	//seed for fruit position geeration
 	srand(unsigned(time(NULL) + clock()));
 	setup(screen, xpos, ypos, tailx, taily, length, state, fxpos, fypos, delay, score);
 	while (game) {
@@ -86,7 +86,7 @@ void display(wchar_t scr[][Width], int& xp, int& yp, int& hxp, int& hyp, int tpx
 	for (int k = 0; k < length - 1; ++k) {
 		scr[tpy[k]][tpx[k]] = L'@';
 	}
-	//Jedna klatka
+	//one frame
 	swprintf_s(&scr[0][Width - 12], 12, L"WYNIK: %4d", score);
 	for (SHORT i = 0; i < SHORT(Height); ++i)
 		WriteConsoleOutputCharacter(hConsole, scr[i], Width, { 0,i }, &dwBytesWriten);
@@ -107,7 +107,7 @@ void controls(int& st)
 void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytail[], int& state, bool& game, int& fxpos, int& fypos, int& score, int& delay)
 {
 	controls(state);
-	//ustalenie pozycje elementow ogona
+	//snake tail positions
 	int xtmp = xtail[0], ytmp = ytail[0];
 	xtail[0] = xp, ytail[0] = yp;
 	int xtmp2, ytmp2, i;
@@ -116,7 +116,7 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 		xtail[i] = xtmp, ytail[i] = ytmp;
 		xtmp = xtmp2, ytmp = ytmp2;
 	}
-	//koniec ogona
+	//tail end
 	hxp = xtail[i - 1];
 	hyp = ytail[i - 1];
 	//zmiana wspolrzednych weza wzgledem stanu kierunku
@@ -147,7 +147,7 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 		break;
 	case END: game = false; break;
 	}
-	//zebranie owoca
+	//fruit pick up
 	if (xp == fxpos && yp == fypos) {
 		++len;
 		if (!((score += 10) % 100))
@@ -167,7 +167,7 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 				continue;
 		} while (fxpos == xp && fypos == yp);
 	}
-	//zderzenie
+	//impact
 	for (i = 0; i < len; ++i) {
 		if (xp == xtail[i] && yp == ytail[i])
 			game = false;
