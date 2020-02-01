@@ -4,50 +4,81 @@
 const int Width = 40, Height = 30;
 enum { END = 0, UP, RIGHT, DOWN, LEFT };
 void controls(int&);
-void setup(wchar_t[][Width], int&, int&, int[], int[], int&, int&, int&, int&, int&, int&);
+void setup(wchar_t[][Width], int&, int&, int[], int[], int&, int&, int&, int&, int&, int&, bool&);
 void logic(int&, int&, int&, int&, int&, int[], int[], int&, bool&, int&, int&, int&, int&);
 void display(wchar_t[][Width], int&, int&, int&, int&, int[], int[], int&, int&, int&, int&, HANDLE&, DWORD&);
+void choose(bool&, bool&);
+void noise(int,HANDLE&,DWORD&);
 int main()
 {
 	SetConsoleTitle(TEXT("ASCI Snake 1.0"));
-	//rozmiar okna
+	//Console window size
 	HWND console = GetConsoleWindow();
 	RECT ConsoleRect;
-	GetWindowRect(console, &ConsoleRect);
-	MoveWindow(console, ConsoleRect.left, ConsoleRect.top, 325, 525, TRUE);
+	/*GetWindowRect(console, &ConsoleRect);*/
+	//MoveWindow(console, ConsoleRect.left, ConsoleRect.top, 325, 525, TRUE);	
 	//bufor konsoli txt
 	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
 	SetConsoleActiveScreenBuffer(hConsole);
 	DWORD dwBytesWriten = 0;
+	COORD BuforSize;
+	BuforSize.X = Width;
+	BuforSize.Y = Height;
+
+	CONSOLE_CURSOR_INFO lpCursor;
+	lpCursor.bVisible = FALSE;
+	lpCursor.dwSize = 50;
+	SetConsoleCursorInfo(hConsole, &lpCursor);
 
 	wchar_t screen[Height][Width];
 	int xpos, ypos, hxpos, hypos, length, tailx[(Height - 2) * (Width - 3)], taily[(Height - 2) * (Width - 3)];
-	int state, fxpos, fypos, delay, score = 1000;
-	bool game = true;
-	//seed dla generowania owocu
+	int state, fxpos, fypos, delay, score;
+	bool game, run=true;
+	//seed for fruit position geeration
 	srand(unsigned(time(NULL) + clock()));
-	setup(screen, xpos, ypos, tailx, taily, length, state, fxpos, fypos, delay, score);
-	while (game) {
-		time_t start = clock();
-		while (clock() - start < delay);
-		logic(xpos, ypos, hxpos, hypos, length, tailx, taily, state, game, fxpos, fypos, score, delay);
-		display(screen, xpos, ypos, hxpos, hypos, tailx, taily, length, fxpos, fypos, score,hConsole,dwBytesWriten);
+	while (run) {
+		setup(screen, xpos, ypos, tailx, taily, length, state, fxpos, fypos, delay, score, game);
+		//game loop
+		while (game) {
+			/*SetConsoleCursorInfo(hConsole, &lpCursor);*/
+			SetConsoleScreenBufferSize(hConsole, BuforSize);
+			GetWindowRect(console, &ConsoleRect);
+			MoveWindow(console, ConsoleRect.left, ConsoleRect.top, 330, 525, TRUE);
+			time_t start = clock();
+			while (clock() - start < delay);
+			logic(xpos, ypos, hxpos, hypos, length, tailx, taily, state, game, fxpos, fypos, score, delay);
+			display(screen, xpos, ypos, hxpos, hypos, tailx, taily, length, fxpos, fypos, score, hConsole, dwBytesWriten);
+		}
+		game = true;
+		wchar_t endscreen[Height][Width];
+		int x, y;
+		for (y = 0; y < Height; ++y)
+			for (x = 0; x < Width; ++x)
+				endscreen[y][x] = L' ';
+		swprintf_s(&endscreen[Height / 2 - 7][Width / 2 - 5], 11, L"KONIEC GRY");
+		swprintf_s(&endscreen[Height / 2 - 6][Width / 2 - 5], 11, L"WYNIK:%4d", score);
+		swprintf_s(&endscreen[Height / 2 - 5][Width / 2 - 6], 13, L"Jeszcze raz?");
+		swprintf_s(&endscreen[Height / 2 - 4][Width / 2 - 9], 20, L"TAK[ENTER] NIE[ESC]");
+		noise(500, hConsole, dwBytesWriten);
+		//menu loop
+		while (game) {
+			GetWindowRect(console, &ConsoleRect);
+			SetConsoleScreenBufferSize(hConsole, BuforSize);
+			MoveWindow(console, ConsoleRect.left, ConsoleRect.top, 330, 530, TRUE);
+			for (y = 0; y < Height; ++y)
+				WriteConsoleOutputCharacter(hConsole, endscreen[y], Width, { 0,SHORT(y) }, &dwBytesWriten);
+			choose(game, run);
+		}
 	}
 	CloseHandle(hConsole);
-	std::cout.width(26);
-	std::cout << std::endl << std::endl << std::endl << std::endl << std::endl << "\aKONIEC GRY" << std::endl;
-	std::cout.width(28);
-	std::cout << "TWOJ WYNIK TO: " << score << std::endl;
-	time_t start = clock();
-	while (clock() - start < 1000);
-	std::cin.get();
 	return 0;
 }
-void setup(wchar_t scr[][Width], int& xp, int& yp, int txp[], int typ[], int& len, int& state, int& fxpos, int& fypos, int& delay, int& score)
+void setup(wchar_t scr[][Width], int& xp, int& yp, int txp[], int typ[], int& len, int& state, int& fxpos, int& fypos, int& delay, int& score, bool& game)
 {
+	game = true;
 	xp = Width / 2;
-	yp = Height / 2;
-	len = 3;
+	yp = 3;
+	len = 27;
 	delay = 100;
 	score = 0;
 	int x, y;
@@ -63,8 +94,9 @@ void setup(wchar_t scr[][Width], int& xp, int& yp, int txp[], int typ[], int& le
 				scr[y][x] = L' ';
 		}
 	}
-	bool check = false;
+	bool check;
 	do {
+		check = false;
 		fxpos = rand() % (Width - 2) + 1;
 		fypos = rand() % (Height - 3) + 2;
 		for (x = 0; x < len; ++x) {
@@ -73,9 +105,7 @@ void setup(wchar_t scr[][Width], int& xp, int& yp, int txp[], int typ[], int& le
 				break;
 			}
 		}
-		if (check == true)
-			continue;
-	} while (fxpos == xp && fypos == yp);
+	} while ((fxpos == xp && fypos == yp) || check == true);
 	state = UP;
 }
 void display(wchar_t scr[][Width], int& xp, int& yp, int& hxp, int& hyp, int tpx[], int tpy[], int& length, int& fxpos, int& fypos, int& score, HANDLE& hConsole, DWORD& dwBytesWriten)
@@ -86,10 +116,10 @@ void display(wchar_t scr[][Width], int& xp, int& yp, int& hxp, int& hyp, int tpx
 	for (int k = 0; k < length - 1; ++k) {
 		scr[tpy[k]][tpx[k]] = L'@';
 	}
-	//Jedna klatka
+	//One frame
 	swprintf_s(&scr[0][Width - 12], 12, L"WYNIK: %4d", score);
-	for (SHORT i = 0; i < SHORT(Height); ++i)
-		WriteConsoleOutputCharacter(hConsole, scr[i], Width, { 0,i }, &dwBytesWriten);
+	for (int i = 0; i < Height; ++i)
+		WriteConsoleOutputCharacter(hConsole, scr[i], Width, { 0,SHORT(i) }, &dwBytesWriten);
 }
 void controls(int& st)
 {
@@ -107,7 +137,7 @@ void controls(int& st)
 void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytail[], int& state, bool& game, int& fxpos, int& fypos, int& score, int& delay)
 {
 	controls(state);
-	//ustalenie pozycje elementow ogona
+	//snake tail positions
 	int xtmp = xtail[0], ytmp = ytail[0];
 	xtail[0] = xp, ytail[0] = yp;
 	int xtmp2, ytmp2, i;
@@ -116,10 +146,10 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 		xtail[i] = xtmp, ytail[i] = ytmp;
 		xtmp = xtmp2, ytmp = ytmp2;
 	}
-	//koniec ogona
+	//tail end
 	hxp = xtail[i - 1];
 	hyp = ytail[i - 1];
-	//zmiana wspolrzednych weza wzgledem stanu kierunku
+	//snake mowvement
 	switch (state) {
 	case RIGHT:
 		if (xp < Width - 2)
@@ -147,14 +177,14 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 		break;
 	case END: game = false; break;
 	}
-	//zebranie owoca
+	//fruit pick up
 	if (xp == fxpos && yp == fypos) {
 		++len;
 		if (!((score += 10) % 100))
 			delay -= 5;
-
-		bool check = false;
+		bool check;
 		do {
+			check = false;
 			fxpos = rand() % (Width - 2) + 1;
 			fypos = rand() % (Height - 3) + 2;
 			for (i = 0; i < len; ++i) {
@@ -163,13 +193,45 @@ void logic(int& xp, int& yp, int& hxp, int& hyp, int& len, int xtail[], int ytai
 					break;
 				}
 			}
-			if (check == true)
-				continue;
-		} while (fxpos == xp && fypos == yp);
+		} while ((fxpos == xp && fypos == yp) || check == true);
 	}
-	//zderzenie
-	for (i = 0; i < len; ++i) {
+	//snake impacts it self
+	for (i = 0; i < len-1; ++i) {
 		if (xp == xtail[i] && yp == ytail[i])
 			game = false;
+	}
+}
+void choose(bool& game, bool& run)
+{
+	if (GetKeyState(VK_RETURN) & 0x8000)
+		game = false;
+	else if (GetKeyState(VK_ESCAPE) & 0x8000) {
+		game = false;
+		run = false;
+	}
+}
+void noise(int delay, HANDLE& console, DWORD& dwBytesWriten)
+{
+	const int ArrSize = 2;
+	wchar_t scr[ArrSize][ArrSize][Width];
+	int i,k;
+	for (i = 0; i < Width; ++i) {
+		scr[0][0][i] = L'#';
+		scr[0][1][i] = L' ';
+	}
+	for (i = 0; i < Width; ++i) {
+		scr[1][0][i] = L' ';
+		scr[1][1][i] = L'@';
+	}
+	clock_t start = clock();
+	while (clock() - start < delay) {
+		/*clock_t begin = clock();
+		while (clock() - begin < 33);*/
+
+		k = 0;
+		for (i = 0; i < Height; ++i)
+			WriteConsoleOutputCharacter(console, scr[k++ % ArrSize][i % ArrSize], Width, { 0,SHORT(i) }, &dwBytesWriten);
+		for (i = 0; i < Height; ++i)
+			WriteConsoleOutputCharacter(console, scr[k % ArrSize][i % ArrSize], Width, { 0,SHORT(i) }, &dwBytesWriten);
 	}
 }
